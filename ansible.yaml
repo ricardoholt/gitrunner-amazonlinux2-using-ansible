@@ -1,0 +1,114 @@
+---
+- name: WAIT FOR SSH CONNECTION
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Ensure SSH port open
+      ansible.builtin.wait_for:
+        port: 22
+        delay: 10
+        timeout: 100
+        search_regex: OpenSSH
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+      vars:
+        ansible_connection: local
+
+- name: GITRUNNER INSTALL
+  hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Installing GitRunner Repository
+      ansible.builtin.shell: "curl -L https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh | sudo bash"
+    - name: Install GitRunner
+      ansible.builtin.yum:
+        name:
+          - gitlab-runner
+    - name: Check GitRunner version
+      ansible.builtin.shell: "gitlab-runner -version"
+      register: gitlabrunner_version
+    - ansible.builtin.debug: msg={{gitlabrunner_version}}
+    - name: Start GitRunner
+      ansible.builtin.shell: "gitlab-runner start"
+    - name: Ensure GitRunner is running
+      ansible.builtin.shell: "ps aux | grep gitlab-runner " 
+      register: gitlabrunner_running
+    - ansible.builtin.debug: msg={{gitlabrunner_running}}  
+
+- name: REGISTER GITRUNNER SHELL EXECUTER
+  hosts: all
+  gather_facts: no
+  vars_files:
+    - ansible-variable.yaml
+  tasks:
+    - name: Clening up existing runner
+      ansible.builtin.shell: gitlab-runner unregister --all-runners
+    - name: Registering Shell Runner
+      ansible.builtin.shell: |
+              gitlab-runner register \
+              --non-interactive \
+              --url "https://gitlab.com/" \
+              --registration-token "{{ registration_token }}" \
+              --executor "shell" \
+              --description "shell-runner" \
+              --tag-list "shell" \
+              --run-untagged="true" \
+              --locked="false"
+
+- name: INSTALL DOCKER FOR GITRUNNER-DOCKER-EXECUTER
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Installing Docker
+      ansible.builtin.yum:
+        name: 
+          - docker
+        state: present
+        update_cache: yes
+    - name: Ensure Docker is Installed
+      ansible.builtin.shell: "docker -v"
+      register: docker_version
+    - debug: msg={{docker_version}}
+    - name: Starting the docker service
+      ansible.builtin.systemd:
+        state: started
+        name: docker
+    - name: Ensure docker is running
+      ansible.builtin.shell: "ps aux | grep docker"
+      register: docker_running
+    - debug: msg={{docker_running}}
+    - name: Addig GitRunner user to Docker Group
+      ansible.builtin.shell: "{{ item }}"
+      with_items:
+          - usermod -aG docker gitlab-runner
+          - chmod 666 /var/run/docker.sock
+
+- name: REGISTER GITRUNNER DOCKER EXECUTER
+  hosts: all
+  gather_facts: no
+  vars_files:
+    - ansible-variable.yaml
+  tasks:  
+    - name: Registering Docker Runner
+      ansible.builtin.shell: |
+              gitlab-runner register \
+              --non-interactive \
+              --url "https://gitlab.com/" \
+              --registration-token "{{ registration_token }}" \
+              --executor "docker" \
+              --docker-image ubuntu:latest \
+              --description "docker-runner" \
+              --tag-list "docker" \
+              --run-untagged="true" \
+              --locked="false"
+    - name: Ensure GitLab Runners are registered
+      ansible.builtin.shell: gitlab-runner list
+      register: gitlab_runner_registered
+    - ansible.builtin.debug: msg={{gitlab_runner_registered}}
+    - name: GitRunner Verify
+      ansible.builtin.shell: gitlab-runner verify
+      register: gitlab_runner_verify
+    - debug: msg={{gitlab_runner_verify}}
+    - name: GitRunner Run
+      ansible.builtin.shell: nohup gitlab-runner run &>/dev/null &
