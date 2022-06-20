@@ -1,13 +1,33 @@
-# GitRunner Installation on Amazon Linux2 using Ansible
+# GitRunner Installation on Amazon Linux2 using Ansible and Terraform
 
-Install GitRunner "shell" and "docker" executer on Amazon Linux2 using Ansible.
+Install GitRunner "shell" and "docker" executer on Amazon Linux2 using Ansible and Terraform.
+
+
+## WorkFlow
+
+--> Terraform is to create EC2-Instance
+--> Once EC2 is Created Terraform will Trigger Ansible 
+--> Ansible will Install and Register both "shell" and "docker" Runner
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
 
-1: Terraform
-2: Ansible
-3: Change Variable in files "ansible-variable.yaml" and "terraform.tfvars" as per your configuration.
+1st: Install Terraform which will be used to Create EC2-Instance. 
+>> https://learn.hashicorp.com/tutorials/terraform/install-cli
+
+2nd: Install Ansible which will Configure EC2-Instance With GitRunner >> >> https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+
+3rd: Create a Key-Pair for EC2-Instance 
+>> https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html
+
+4th: Configure AWS Credential in your Environment Variable
+>> https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+
+## Steps to Configure
+
+Step1: After completing the Requirments, Go to the folder where you have cloned/copied this repository and then change the variable in files "ansible-variable.yaml" and "terraform.tfvars" as per your configuration.
+
+Step2: In the same folder run the command "terraform -init" and then run "terraform -apply".
 
 ## Providers
 
