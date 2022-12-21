@@ -3,7 +3,7 @@
 Install GitRunner "shell" and "docker" executer on Amazon Linux2 using Ansible and Terraform.
 
 
-## WorkFlow
+## WorkFlow Process
 
 --> Terraform is to create EC2-Instance
 --> Once EC2 is Created Terraform will Trigger Ansible 
